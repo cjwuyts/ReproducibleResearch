@@ -1,0 +1,106 @@
+---
+output: html_document
+---
+
+Reproducible Research Course Project 1
+======================================
+
+In this assignment, data from a personal activity monitoring device will be analysed to answer the given questions on the number of steps per day and the average daily activity pattern.
+
+
+### Loading the data
+```{r load}
+activity<-read.csv("activity.csv")
+```
+
+### Steps taken per day
+```{r stepsperday}
+completeactivity<-activity[complete.cases(activity),]
+stepsperday<-tapply(completeactivity$steps, completeactivity$date, sum)
+
+hist(stepsperday, main="Total number of steps per day", xlab="Total number of steps per day", col="grey")
+
+mu<-mean(stepsperday,na.rm=T)
+me<-median(stepsperday,na.rm=T)
+
+options(scipen=999)
+```
+
+The mean number of total steps taken per day is `r mu`, the median number of total steps taken per day is `r me`.
+
+### Average daily activity pattern
+```{r dailyactivity}
+stepsperinterval<-tapply(completeactivity$steps, 
+      completeactivity$interval, mean)
+plot(rownames(stepsperinterval), stepsperinterval, type="l",                   
+      main="Average daily activity", 
+      xlab="Interval", ylab="Average number of steps")
+
+whichmax<-names(which.max(stepsperinterval))
+max<-stepsperinterval[rownames(stepsperinterval)==whichmax]
+
+abline(v=whichmax, col="red")
+```
+
+Interval `r whichmax` contains on average the maximum number of steps (`r round(max,2)` steps).
+
+### Imputing missing values
+```{r missingimputation}
+nmiss<-sum(sapply(activity$steps, FUN=is.na))
+
+imputedactivity<-activity
+
+intervals<-unique(activity$interval)
+
+for (i in 1:length(stepsperinterval)){
+      imputedactivity$steps[imputedactivity$interval==intervals[i] & is.na(imputedactivity$steps)]<-stepsperinterval[rownames(stepsperinterval)==intervals[i]]
+}
+
+nmiss2<-sum(sapply(imputedactivity$steps, FUN=is.na))
+```
+
+The total number of rows with NA's is `r nmiss`. The missing numbers of steps are imputed by the mean number of steps per interval. Thus, in the new dataset `imputedactivity`, there are no missing numbers of steps left (`nmiss2`=`r nmiss2`).
+
+### Steps taken per day (2)
+```{r stepsperday2}
+stepsperday2<-tapply(imputedactivity$steps, imputedactivity$date, sum)
+
+hist(stepsperday2, main="Total number of steps per day (based on imputed data)", xlab="Total number of steps per day", col="grey")
+
+mu2<-mean(stepsperday2,na.rm=T)
+me2<-median(stepsperday,na.rm=T)
+```
+
+The mean number of total steps taken per day, based on the imputed data, is `r mu2`, the median number of total steps taken per day is `r me2`. The difference based on the original data versus the imputed data is `r mu-mu2` and `r me-me2`, respectively.
+
+### Daily activity pattern on weekdays vs weekenddays
+```{r weekvsweekend}
+imputedactivity$weekday<-weekdays(as.Date(imputedactivity$date,
+                                          format="%Y-%m-%d"))
+imputedactivity$weekend<-as.factor(ifelse(imputedactivity$weekday=="samedi"|
+                                      imputedactivity$weekday=="dimanche",
+                                "weekend","weekday"))
+imputedactivityWE<-imputedactivity[imputedactivity$weekend=="weekend",]
+imputedactivityWD<-imputedactivity[imputedactivity$weekend=="weekday",]
+
+stepsperintervalWE<-tapply(imputedactivityWE$steps, 
+      imputedactivityWE$interval, mean)
+stepsperintervalWD<-tapply(imputedactivityWD$steps, 
+      imputedactivityWD$interval, mean)
+
+par(mfrow=c(1,2))
+plot(rownames(stepsperintervalWE), stepsperintervalWE,
+     type="l",                   
+     main="Average daily activity (weekends)", 
+     xlab="Interval", ylab="Average number of steps",
+     ylim=c(0,250),
+     col="blue")
+plot(rownames(stepsperintervalWD), stepsperintervalWD,
+     type="l",                   
+     main="Average daily activity (weekdays)", 
+     xlab="Interval", ylab="Average number of steps",
+     ylim=c(0,250),
+     col="red")
+```
+
+Based on the daily activity plots for weekenddays (left) and weekdays (right), it is clear that the activity patterns are quite different. On weekdays, there is much activity is a sudden increase in activity in the morning, and not much later a peak in activity, which might result from rushing to work; then all day is low in activity, with a slight increase again at the end of the workday. On weekenddays, the average activity is less extreme.
